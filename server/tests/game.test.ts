@@ -269,6 +269,17 @@ describe('GameEngine - Night Phase Sequencing & Role Actions', () => {
     // After Seer, night completes and transitions to DAY_DISCUSSION
     expect(game.state.phase).toBe('DAY_DISCUSSION');
   });
+
+  it('skips Cupid on night 2 and begins with Bodyguard', () => {
+    game.isTestMode = true;
+    game.state.dayNumber = 2;
+    // Lovers were already set on night 1
+    game.state.lovers = ['p7', 'p8'];
+    game.startNight();
+
+    // Night 2 should skip Cupid directly and start with BODYGUARD
+    expect(game.state.nightSubPhase).toBe('BODYGUARD');
+  });
 });
 
 describe('GameEngine - Day Casualties, Hunter Revenge & Lover Grief', () => {

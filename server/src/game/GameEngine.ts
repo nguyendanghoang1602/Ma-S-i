@@ -40,7 +40,7 @@ export class GameEngine {
 
   constructor(options: GameEngineOptions) {
     const defaultSettings: GameSettings = {
-      nightDuration: DEFAULT_TIMERS.NIGHT,
+      nightDuration: DEFAULT_TIMERS.NIGHT_SUBPHASE || 20,
       discussionDuration: DEFAULT_TIMERS.DISCUSSION,
       votingDuration: DEFAULT_TIMERS.VOTING,
       minPlayers: MIN_PLAYERS,
@@ -341,9 +341,18 @@ export class GameEngine {
 
     while (nextIndex < subPhases.length) {
       const candidate = subPhases[nextIndex];
-      if (this.isNightSubPhaseActive(candidate)) {
-        this.setNightSubPhase(candidate);
+      const isActive = this.isNightSubPhaseActive(candidate);
+
+      if (isActive) {
+        this.setNightSubPhase(candidate, true);
         return;
+      } else {
+        // If no active player for this role and not in test mode:
+        // Briefly pause for 2s so all players observe the sequential village flow
+        if (!this.isTestMode) {
+          this.setNightSubPhase(candidate, false);
+          return;
+        }
       }
       nextIndex++;
     }
@@ -386,9 +395,12 @@ export class GameEngine {
     }
   }
 
-  private setNightSubPhase(subPhase: NightSubPhase): void {
+  private setNightSubPhase(subPhase: NightSubPhase, isActive: boolean = true): void {
     this.state.nightSubPhase = subPhase;
-    const duration = this.state.settings.nightDuration || DEFAULT_TIMERS.NIGHT;
+    const duration = isActive
+      ? (this.state.settings.nightDuration || DEFAULT_TIMERS.NIGHT_SUBPHASE)
+      : (this.isTestMode ? 0 : 2);
+
     this.setTimer(duration, () => {
       this.onNightSubPhaseTimeout();
     });
@@ -412,11 +424,13 @@ export class GameEngine {
     }
 
     this.notifyUpdate();
-    this.triggerBotNightActions(subPhase);
+    if (isActive) {
+      this.triggerBotNightActions(subPhase);
+    }
   }
 
   private triggerBotNightActions(subPhase: NightSubPhase): void {
-    const delay = this.isTestMode ? 0 : 1200;
+    const delay = this.isTestMode ? 0 : 3500;
 
     const scheduleAction = (fn: () => void) => {
       if (delay === 0) {

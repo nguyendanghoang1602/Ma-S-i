@@ -2,7 +2,7 @@
  * Role definitions, alignments, night priority orders, and Vietnamese descriptions.
  */
 
-import { RoleType, Team } from './types';
+import { RoleType, Team, NightSubPhase } from './types';
 
 export interface RoleDefinition {
   id: RoleType;
@@ -30,6 +30,52 @@ export const NIGHT_ROLE_ORDER: RoleType[] = [
   'WEREWOLF',
   'WITCH',
   'SEER',
+];
+
+export interface NightSubPhaseStep {
+  subPhase: NightSubPhase;
+  role: RoleType;
+  nameVi: string;
+  icon: string;
+  wakeMessage: string;
+}
+
+export const NIGHT_SUBPHASE_ORDER: NightSubPhaseStep[] = [
+  {
+    subPhase: 'CUPID',
+    role: 'CUPID',
+    nameVi: 'Thần Tình Yêu (Cupid)',
+    icon: '💘',
+    wakeMessage: 'Thần Tình Yêu hãy thức dậy và chọn 2 người kết đôi tình nhân.',
+  },
+  {
+    subPhase: 'BODYGUARD',
+    role: 'BODYGUARD',
+    nameVi: 'Bảo Vệ',
+    icon: '🛡️',
+    wakeMessage: 'Bảo Vệ hãy thức dậy và chọn 1 người bảo vệ trong đêm nay.',
+  },
+  {
+    subPhase: 'WEREWOLF',
+    role: 'WEREWOLF',
+    nameVi: 'Ma Sói',
+    icon: '🐺',
+    wakeMessage: 'Ma Sói hãy thức giấc, cùng bàn bạc và thống nhất chọn 1 nạn nhân.',
+  },
+  {
+    subPhase: 'WITCH',
+    role: 'WITCH',
+    nameVi: 'Phù Thủy',
+    icon: '🧙‍♀️',
+    wakeMessage: 'Phù Thủy thức giấc! Nạn nhân của Sói đã lộ diện, bạn có muốn dùng bình cứu/độc không?',
+  },
+  {
+    subPhase: 'SEER',
+    role: 'SEER',
+    nameVi: 'Tiên Tri',
+    icon: '🔮',
+    wakeMessage: 'Tiên Tri hãy thức dậy và chọn 1 người để soi thân phận thật.',
+  },
 ];
 
 export const ROLE_DEFINITIONS: Record<RoleType, RoleDefinition> = {

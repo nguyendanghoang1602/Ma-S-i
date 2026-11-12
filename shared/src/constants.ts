@@ -10,6 +10,7 @@ import { RoleType } from './types';
  */
 export const DEFAULT_TIMERS = {
   NIGHT: 30,
+  NIGHT_SUBPHASE: 20,
   DISCUSSION: 60,
   VOTING: 30,
   HUNTER: 15,
