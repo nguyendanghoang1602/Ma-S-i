@@ -281,9 +281,9 @@ export const NightView: React.FC = () => {
               isWolfTarget={isWolfTarget}
               selectionBadge={badge}
               showRole={
-                !player.isAlive ||
                 roomState.phase === 'GAME_OVER' ||
-                (me.role === 'WEREWOLF' && player.role === 'WEREWOLF')
+                (me.role === 'WEREWOLF' && player.role === 'WEREWOLF') ||
+                isMe
               }
               onClick={() => handleCardClick(player)}
             />

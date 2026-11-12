@@ -126,7 +126,7 @@ export const VotingView: React.FC = () => {
               voteCount={tally.count}
               voterNames={tally.voterNames}
               selectionBadge={isSelected ? 'Phiếu của bạn' : undefined}
-              showRole={!player.isAlive || roomState.phase === 'GAME_OVER'}
+              showRole={roomState.phase === 'GAME_OVER'}
               onClick={() => handleVotePlayer(player)}
             />
           );

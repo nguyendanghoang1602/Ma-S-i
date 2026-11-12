@@ -502,6 +502,46 @@ describe('GameEngine - Anti-Cheat Client State Masking', () => {
     // p2 cannot see villager role
     expect(clientState.players.find((p) => p.id === 'p1')?.role).toBeNull();
   });
+
+  it('masks dead players secret roles in client state and lastNightDeaths during the game', () => {
+    const game = new GameEngine({
+      code: 'TEST09',
+      hostPlayer: { id: 'p1', name: 'Vil1', avatar: 'a1' },
+      settings: { minPlayers: 4 },
+    });
+    game.addPlayer({ id: 'p2', name: 'DeadSeer', avatar: 'a2' });
+    game.addPlayer({ id: 'p3', name: 'Wolf1', avatar: 'a3' });
+    game.addPlayer({ id: 'p4', name: 'Vil2', avatar: 'a4' });
+
+    game.state.players[0].role = 'VILLAGER';
+    game.state.players[1].role = 'SEER';
+    game.state.players[2].role = 'WEREWOLF';
+    game.state.players[3].role = 'VILLAGER';
+
+    // Seer died at night
+    game.state.phase = 'NIGHT';
+    game.state.nightVictims.wolfVictimId = 'p2';
+    game.transitionToDay();
+
+    // Game should NOT be over: 1 wolf vs 2 villagers
+    expect(game.state.phase).toBe('DAY_DISCUSSION');
+
+    // In DAY_DISCUSSION, verify p1 viewing client state
+    const clientState = game.getClientState('p1');
+    const deadPlayer = clientState.players.find((p) => p.id === 'p2');
+    expect(deadPlayer?.isAlive).toBe(false);
+    expect(deadPlayer?.role).toBeNull(); // Role must be masked!
+
+    // lastNightDeaths must also have role masked
+    const deathEntry = clientState.lastNightDeaths.find((d) => d.playerId === 'p2');
+    expect(deathEntry?.role).toBeNull();
+
+    // Verify logs do not leak role
+    const logs = game.state.logs;
+    logs.forEach((log) => {
+      expect(log.message).not.toContain('Thân phận thật:');
+    });
+  });
 });
 
 describe('GameEngine - Bot AI Support', () => {

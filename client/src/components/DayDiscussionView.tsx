@@ -49,23 +49,15 @@ export const DayDiscussionView: React.FC = () => {
                 <span>Nạn nhân đêm qua ({deaths.length} người ngã xuống):</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {deaths.map((d) => {
-                  const roleDef = d.role ? ROLE_DEFINITIONS[d.role] : null;
-                  return (
-                    <div
-                      key={d.playerId}
-                      className="px-2.5 py-1 rounded-xl bg-red-950/90 border border-red-500/40 text-xs font-semibold text-red-200 flex items-center gap-1.5 shadow-sm"
-                    >
-                      <span className="font-bold text-white">{d.playerName}</span>
-                      {roleDef && (
-                        <span className="text-[11px] text-amber-300 bg-red-900/80 px-1.5 py-0.2 rounded">
-                          ({roleDef.nameVi})
-                        </span>
-                      )}
-                      <span className="text-gray-400 text-[11px]">({d.reason})</span>
-                    </div>
-                  );
-                })}
+                {deaths.map((d) => (
+                  <div
+                    key={d.playerId}
+                    className="px-2.5 py-1 rounded-xl bg-red-950/90 border border-red-500/40 text-xs font-semibold text-red-200 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="font-bold text-white">{d.playerName}</span>
+                    <span className="text-gray-400 text-[11px]">({d.reason})</span>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
@@ -87,7 +79,7 @@ export const DayDiscussionView: React.FC = () => {
               key={player.id}
               player={player}
               isMe={isMe}
-              showRole={!player.isAlive || roomState.phase === 'GAME_OVER'}
+              showRole={roomState.phase === 'GAME_OVER'}
             />
           );
         })}

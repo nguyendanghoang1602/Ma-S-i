@@ -882,7 +882,7 @@ export class GameEngine {
     target.deathPhase = this.state.phase;
 
     this.addLog(
-      `Thợ Săn đã nổ súng bắn chết ${target.name} (${target.role}) trước khi trút hơi thở cuối!`,
+      `Thợ Săn đã nổ súng bắn chết ${target.name} trước khi trút hơi thở cuối!`,
       'DEATH'
     );
 
@@ -1050,7 +1050,7 @@ export class GameEngine {
       executed.deathPhase = 'DAY_VOTING';
 
       this.addLog(
-        `${executed.name} nhận nhiều phiếu nhất (${highestVotes} phiếu) và đã bị treo cổ! Thân phận thật: ${executed.role}`,
+        `${executed.name} nhận nhiều phiếu nhất (${highestVotes} phiếu) và đã bị treo cổ!`,
         'VOTE'
       );
 
@@ -1282,6 +1282,12 @@ export class GameEngine {
       viewer?.role === 'CUPID' ||
       (viewer && this.state.lovers?.includes(viewer.id));
 
+    // Mask dead players' roles in lastNightDeaths
+    const maskedDeaths = this.state.lastNightDeaths.map((d) => ({
+      ...d,
+      role: isGameOver || d.playerId === forPlayerId ? d.role : null,
+    }));
+
     return {
       ...this.state,
       players: clientPlayers,
@@ -1289,6 +1295,7 @@ export class GameEngine {
       nightVictims,
       lovers: canSeeLovers ? this.state.lovers : null,
       messages: filteredMessages,
+      lastNightDeaths: maskedDeaths,
     };
   }
 
