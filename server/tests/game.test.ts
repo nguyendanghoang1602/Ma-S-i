@@ -503,3 +503,112 @@ describe('GameEngine - Anti-Cheat Client State Masking', () => {
     expect(clientState.players.find((p) => p.id === 'p1')?.role).toBeNull();
   });
 });
+
+describe('GameEngine - Bot AI Support', () => {
+  it('allows adding and removing bots in lobby with correct bot attributes', () => {
+    const game = new GameEngine({
+      code: 'BOT01',
+      hostPlayer: { id: 'p1', name: 'HumanHost', avatar: 'a1' },
+    });
+
+    const bot1 = game.addBot();
+    expect(bot1.isBot).toBe(true);
+    expect(bot1.id.startsWith('bot_')).toBe(true);
+    expect(bot1.name.startsWith('🤖 Bot')).toBe(true);
+    expect(game.state.players).toHaveLength(2);
+
+    const bot2 = game.addBot('🤖 Bot Test Special');
+    expect(bot2.name).toBe('🤖 Bot Test Special');
+    expect(game.state.players).toHaveLength(3);
+
+    // Remove bot1
+    const removed = game.removeBot(bot1.id);
+    expect(removed).toBe(true);
+    expect(game.state.players).toHaveLength(2);
+    expect(game.getPlayer(bot1.id)).toBeUndefined();
+  });
+
+  it('runs automated bot actions during night phases', () => {
+    const game = new GameEngine({
+      code: 'BOT02',
+      hostPlayer: { id: 'p1', name: 'HumanHost', avatar: 'a1' },
+      settings: { minPlayers: 4 },
+    });
+    game.isTestMode = true; // executes bot actions immediately without delay
+
+    const bot2 = game.addBot();
+    const bot3 = game.addBot();
+    const bot4 = game.addBot();
+
+    expect(game.state.players).toHaveLength(4);
+
+    // Manually assign roles
+    game.state.players[0].role = 'VILLAGER'; // Human
+    game.state.players[1].role = 'WEREWOLF'; // Bot 1
+    game.state.players[2].role = 'SEER';     // Bot 2
+    game.state.players[3].role = 'BODYGUARD';// Bot 3
+
+    game.state.dayNumber = 1;
+    game.startNight();
+
+    // With isTestMode = true:
+    // BODYGUARD subphase starts -> Bot 3 protects automatically -> advances to WEREWOLF
+    // WEREWOLF subphase starts -> Bot 1 attacks automatically -> advances to SEER
+    // SEER subphase starts -> Bot 2 inspects automatically -> advances to DAY_DISCUSSION!
+    expect(game.state.phase).toBe('DAY_DISCUSSION');
+    expect(game.state.nightVictims.wolfVictimId).toBeDefined();
+  });
+
+  it('automatically casts votes for alive bots in voting phase', () => {
+    const game = new GameEngine({
+      code: 'BOT03',
+      hostPlayer: { id: 'p1', name: 'HumanHost', avatar: 'a1' },
+      settings: { minPlayers: 4 },
+    });
+    game.isTestMode = true;
+
+    const bot2 = game.addBot();
+    const bot3 = game.addBot();
+    const bot4 = game.addBot();
+
+    game.state.players.forEach((p) => {
+      p.isAlive = true;
+      p.role = 'VILLAGER';
+    });
+
+    game.startDayVoting();
+
+    // Alive bots cast votes immediately in isTestMode
+    expect(game.state.votes[bot2.id]).toBeDefined();
+    expect(game.state.votes[bot3.id]).toBeDefined();
+    expect(game.state.votes[bot4.id]).toBeDefined();
+  });
+
+  it('automatically triggers hunter revenge shot if Hunter is a bot', () => {
+    const game = new GameEngine({
+      code: 'BOT04',
+      hostPlayer: { id: 'p1', name: 'HumanWolf', avatar: 'a1' },
+    });
+    game.isTestMode = true;
+
+    const botHunter = game.addBot('🤖 Bot Hunter');
+    const botVillager = game.addBot('🤖 Bot Villager');
+
+    game.state.players[0].role = 'WEREWOLF';
+    game.state.players[1].role = 'HUNTER';
+    game.state.players[2].role = 'VILLAGER';
+
+    // Wolf killed Hunter at night
+    game.state.phase = 'NIGHT';
+    game.state.nightVictims.wolfVictimId = botHunter.id;
+
+    game.transitionToDay();
+
+    // Hunter died
+    expect(game.getPlayer(botHunter.id)?.isAlive).toBe(false);
+
+    // Bot Hunter automatically fired revenge shot at one of the remaining alive players!
+    const aliveAfterShot = game.getAlivePlayers();
+    expect(aliveAfterShot.length).toBe(1); // One more player died from hunter shot
+  });
+});

@@ -74,6 +74,14 @@ class SocketService {
   public restartGame() {
     this.socket?.emit(SOCKET_EVENTS.RESTART_GAME);
   }
+
+  public addBot(name?: string) {
+    this.socket?.emit(SOCKET_EVENTS.ADD_BOT, { name });
+  }
+
+  public removeBot(botId: string) {
+    this.socket?.emit(SOCKET_EVENTS.REMOVE_BOT, { botId });
+  }
 }
 
 export const socketService = new SocketService();

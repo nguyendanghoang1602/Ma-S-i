@@ -8,6 +8,8 @@ import {
   Sparkles,
   CheckCircle2,
   Crosshair,
+  Bot,
+  X,
 } from 'lucide-react';
 import { cn } from '../utils/helpers';
 
@@ -23,6 +25,8 @@ interface PlayerCardProps {
   voterNames?: string[];
   onClick?: () => void;
   selectionBadge?: string;
+  onRemoveBot?: () => void;
+  canRemoveBot?: boolean;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -37,6 +41,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   voterNames = [],
   onClick,
   selectionBadge,
+  onRemoveBot,
+  canRemoveBot = false,
 }) => {
   const roleDef = player.role ? ROLE_DEFINITIONS[player.role] : null;
 
@@ -119,7 +125,33 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               <Shield className="w-2.5 h-2.5 text-blue-400" />
             </span>
           )}
+
+          {/* Bot Indicator Badge */}
+          {player.isBot && (
+            <span
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-950/90 text-purple-300 border border-purple-500/40"
+              title="Người chơi tự động (Bot)"
+            >
+              <Bot className="w-2.5 h-2.5 text-purple-400" />
+              Bot
+            </span>
+          )}
         </div>
+
+        {/* Remove Bot Button (Lobby only) */}
+        {player.isBot && canRemoveBot && onRemoveBot && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveBot();
+            }}
+            className="p-1 rounded-full bg-red-950/90 hover:bg-red-900 border border-red-500/50 text-red-300 hover:text-white transition-all shadow-md z-20"
+            title="Đuổi bot này"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
 
         {/* Wolf Target Indicator Badge */}
         {isWolfTarget && player.isAlive && (
@@ -194,6 +226,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       {/* Card Bottom: Player Name & Role Reveal (if applicable) */}
       <div className="w-full text-center z-10 pt-1 border-t border-gray-800/60">
         <div className="flex items-center justify-center gap-1">
+          {player.isBot && <Bot className="w-3 h-3 text-purple-400 shrink-0" />}
           <p
             className={cn(
               'text-xs sm:text-sm font-bold truncate max-w-[120px]',

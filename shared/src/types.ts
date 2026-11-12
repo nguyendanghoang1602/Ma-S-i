@@ -40,6 +40,7 @@ export interface Player {
   isPoisoned: boolean;
   isLover: boolean;
   votesReceived: number;
+  isBot?: boolean;
 
   // Additional helper fields
   loverId?: string | null;
@@ -179,4 +180,13 @@ export interface SocketVotePayload {
 export interface SocketHunterShotPayload {
   targetId: string;
 }
+
+export interface SocketAddBotPayload {
+  name?: string;
+}
+
+export interface SocketRemoveBotPayload {
+  botId: string;
+}
+
 

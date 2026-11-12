@@ -35,6 +35,8 @@ export const SOCKET_EVENTS = {
   CAST_VOTE: 'vote:cast',
   HUNTER_SHOT: 'hunter:shoot',
   RESTART_GAME: 'game:restart',
+  ADD_BOT: 'game:add_bot',
+  REMOVE_BOT: 'game:remove_bot',
 
   // Server -> Client events
   ROOM_STATE: 'room:state',
@@ -75,6 +77,22 @@ export const DEFAULT_AVATARS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=ChibiHero',
   'https://api.dicebear.com/7.x/bottts/svg?seed=ChibiShadow',
   'https://api.dicebear.com/7.x/bottts/svg?seed=ChibiStar',
+];
+
+/**
+ * Vietnamese default bot names for testing
+ */
+export const BOT_NAMES = [
+  '🤖 Bot Tèo',
+  '🤖 Bot Mít',
+  '🤖 Bot Hổ',
+  '🤖 Bot Cáo',
+  '🤖 Bot Gấu',
+  '🤖 Bot Thỏ',
+  '🤖 Bot Sóc',
+  '🤖 Bot Sư Tử',
+  '🤖 Bot Đại Bàng',
+  '🤖 Bot Rùa',
 ];
 
 /**

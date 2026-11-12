@@ -8,6 +8,8 @@ import {
   SocketNightActionPayload,
   SocketVotePayload,
   SocketHunterShotPayload,
+  SocketAddBotPayload,
+  SocketRemoveBotPayload,
 } from '@werewolf/shared';
 
 interface SocketData {
@@ -78,6 +80,49 @@ export function registerSocketHandlers(io: Server, roomManager: RoomManager): vo
         broadcastRoomState(io, room);
       } catch (err: any) {
         socket.emit(SOCKET_EVENTS.ERROR, { message: err.message || 'Lỗi khi vào phòng' });
+      }
+    });
+
+    // ----------------------------------------------------
+    // ADD BOT / REMOVE BOT
+    // ----------------------------------------------------
+    socket.on(SOCKET_EVENTS.ADD_BOT, (payload?: SocketAddBotPayload) => {
+      try {
+        const { roomCode, playerId } = socket.data;
+        if (!roomCode || !playerId) return;
+
+        const room = roomManager.getRoom(roomCode);
+        if (!room) return;
+
+        if (room.state.hostId !== playerId) {
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Chỉ chủ phòng mới có quyền thêm Bot' });
+          return;
+        }
+
+        room.addBot(payload?.name);
+        broadcastRoomState(io, room);
+      } catch (err: any) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: err.message || 'Không thể thêm Bot' });
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.REMOVE_BOT, (payload: SocketRemoveBotPayload) => {
+      try {
+        const { roomCode, playerId } = socket.data;
+        if (!roomCode || !playerId) return;
+
+        const room = roomManager.getRoom(roomCode);
+        if (!room) return;
+
+        if (room.state.hostId !== playerId) {
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Chỉ chủ phòng mới có quyền xóa Bot' });
+          return;
+        }
+
+        room.removeBot(payload.botId);
+        broadcastRoomState(io, room);
+      } catch (err: any) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: err.message || 'Không thể xóa Bot' });
       }
     });
 

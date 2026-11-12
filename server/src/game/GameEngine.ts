@@ -14,8 +14,11 @@ import {
   Team,
   DEFAULT_TIMERS,
   MIN_PLAYERS,
+  MAX_PLAYERS,
   RECOMMENDED_ROLE_CONFIGS,
   VICTORY_MESSAGES,
+  BOT_NAMES,
+  DEFAULT_AVATARS,
   isEvilRole,
   getRoleTeam,
 } from '@werewolf/shared';
@@ -31,6 +34,8 @@ export class GameEngine {
   private lastProtectedPlayerId: string | null = null;
   private werewolfVotes: Record<string, string> = {}; // wolfId -> targetId
   private timerInterval: NodeJS.Timeout | null = null;
+  private botTimeouts: NodeJS.Timeout[] = [];
+  public isTestMode: boolean = false;
   public onStateUpdate?: (state: RoomState) => void;
 
   constructor(options: GameEngineOptions) {
@@ -147,6 +152,61 @@ export class GameEngine {
 
     this.addLog(`${removed.name} đã rời phòng`, 'INFO');
     this.notifyUpdate();
+  }
+
+  public addBot(customName?: string): Player {
+    if (this.state.phase !== 'LOBBY') {
+      throw new Error('Chỉ có thể thêm bot khi đang ở phòng chờ');
+    }
+    if (this.state.players.length >= MAX_PLAYERS) {
+      throw new Error(`Đã đạt giới hạn tối đa ${MAX_PLAYERS} người chơi`);
+    }
+
+    const existingNames = new Set(this.state.players.map((p) => p.name));
+    let botName = customName;
+    if (!botName) {
+      const availableName = BOT_NAMES.find((n) => !existingNames.has(n));
+      botName = availableName || `🤖 Bot ${this.state.players.length + 1}`;
+    }
+
+    const botId = `bot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const randomAvatar = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
+
+    const botPlayer: Player = {
+      id: botId,
+      name: botName,
+      avatar: randomAvatar,
+      role: null,
+      isAlive: true,
+      isHost: false,
+      isMayor: false,
+      isProtected: false,
+      isPoisoned: false,
+      isLover: false,
+      votesReceived: 0,
+      connected: true,
+      isBot: true,
+    };
+
+    this.state.players.push(botPlayer);
+    this.addLog(`${botPlayer.name} đã được thêm vào phòng chơi`, 'INFO');
+    this.notifyUpdate();
+    return botPlayer;
+  }
+
+  public removeBot(botId: string): boolean {
+    if (this.state.phase !== 'LOBBY') {
+      throw new Error('Chỉ có thể xóa bot khi đang ở phòng chờ');
+    }
+
+    const index = this.state.players.findIndex((p) => p.id === botId && p.isBot);
+    if (index === -1) return false;
+
+    const removed = this.state.players[index];
+    this.state.players.splice(index, 1);
+    this.addLog(`${removed.name} đã bị xóa khỏi phòng`, 'INFO');
+    this.notifyUpdate();
+    return true;
   }
 
   public getPlayer(playerId: string): Player | undefined {
@@ -352,6 +412,122 @@ export class GameEngine {
     }
 
     this.notifyUpdate();
+    this.triggerBotNightActions(subPhase);
+  }
+
+  private triggerBotNightActions(subPhase: NightSubPhase): void {
+    const delay = this.isTestMode ? 0 : 1200;
+
+    const scheduleAction = (fn: () => void) => {
+      if (delay === 0) {
+        fn();
+      } else {
+        const timeout = setTimeout(() => {
+          if (this.state.phase === 'NIGHT' && this.state.nightSubPhase === subPhase) {
+            fn();
+          }
+        }, delay);
+        this.botTimeouts.push(timeout);
+      }
+    };
+
+    switch (subPhase) {
+      case 'CUPID': {
+        const cupid = this.getAlivePlayers().find((p) => p.role === 'CUPID' && p.isBot);
+        if (!cupid) return;
+
+        scheduleAction(() => {
+          const alive = this.getAlivePlayers();
+          if (alive.length >= 2) {
+            const shuffled = [...alive].sort(() => 0.5 - Math.random());
+            this.handleNightAction({
+              actorId: cupid.id,
+              actionType: 'CUPID_CHOOSE',
+              targetId: shuffled[0].id,
+              secondTargetId: shuffled[1].id,
+            });
+          }
+        });
+        break;
+      }
+
+      case 'BODYGUARD': {
+        const bodyguard = this.getAlivePlayers().find((p) => p.role === 'BODYGUARD' && p.isBot);
+        if (!bodyguard) return;
+
+        scheduleAction(() => {
+          const eligible = this.getAlivePlayers().filter((p) => p.id !== this.lastProtectedPlayerId);
+          if (eligible.length > 0) {
+            const target = eligible[Math.floor(Math.random() * eligible.length)];
+            this.handleNightAction({
+              actorId: bodyguard.id,
+              actionType: 'BODYGUARD_PROTECT',
+              targetId: target.id,
+            });
+          }
+        });
+        break;
+      }
+
+      case 'WEREWOLF': {
+        const wolfBots = this.getAlivePlayers().filter((p) => p.role === 'WEREWOLF' && p.isBot);
+        if (wolfBots.length === 0) return;
+
+        scheduleAction(() => {
+          const nonWolves = this.getAlivePlayers().filter((p) => p.role !== 'WEREWOLF');
+          const targets = nonWolves.length > 0 ? nonWolves : this.getAlivePlayers();
+          if (targets.length === 0) return;
+
+          const chosenTarget = targets[Math.floor(Math.random() * targets.length)];
+          for (const bot of wolfBots) {
+            this.handleNightAction({
+              actorId: bot.id,
+              actionType: 'WEREWOLF_KILL',
+              targetId: chosenTarget.id,
+            });
+          }
+        });
+        break;
+      }
+
+      case 'WITCH': {
+        const witch = this.getAlivePlayers().find((p) => p.role === 'WITCH' && p.isBot);
+        if (!witch) return;
+
+        scheduleAction(() => {
+          if (this.state.nightVictims.wolfVictimId && this.state.witchInventory.hasSavePotion) {
+            this.handleNightAction({
+              actorId: witch.id,
+              actionType: 'WITCH_SAVE',
+            });
+          }
+          this.handleNightAction({
+            actorId: witch.id,
+            actionType: 'WITCH_SKIP',
+          });
+        });
+        break;
+      }
+
+      case 'SEER': {
+        const seer = this.getAlivePlayers().find((p) => p.role === 'SEER' && p.isBot);
+        if (!seer) return;
+
+        scheduleAction(() => {
+          const others = this.getAlivePlayers().filter((p) => p.id !== seer.id);
+          const pool = others.length > 0 ? others : this.getAlivePlayers();
+          if (pool.length > 0) {
+            const target = pool[Math.floor(Math.random() * pool.length)];
+            this.handleNightAction({
+              actorId: seer.id,
+              actionType: 'SEER_CHECK',
+              targetId: target.id,
+            });
+          }
+        });
+        break;
+      }
+    }
   }
 
   private onNightSubPhaseTimeout(): void {
@@ -670,6 +846,25 @@ export class GameEngine {
       timer: DEFAULT_TIMERS.HUNTER,
     };
     this.addLog(`Thợ Săn ${hunterName} bị hạ gục và kích hoạt phát súng trả thù cuối cùng!`, 'INFO');
+
+    const hunter = this.getPlayer(hunterId);
+    if (hunter && hunter.isBot) {
+      const delay = this.isTestMode ? 0 : 1000;
+      const shoot = () => {
+        const alive = this.getAlivePlayers().filter((p) => p.id !== hunterId);
+        if (alive.length > 0) {
+          const target = alive[Math.floor(Math.random() * alive.length)];
+          this.handleHunterShoot(hunterId, target.id);
+        }
+      };
+
+      if (delay === 0) {
+        shoot();
+      } else {
+        const timeout = setTimeout(shoot, delay);
+        this.botTimeouts.push(timeout);
+      }
+    }
   }
 
   public handleHunterShoot(hunterId: string, targetId: string): { success: boolean; message?: string } {
@@ -741,6 +936,35 @@ export class GameEngine {
       'VOTE'
     );
     this.notifyUpdate();
+    this.triggerBotVoting();
+  }
+
+  private triggerBotVoting(): void {
+    const aliveBotPlayers = this.getAlivePlayers().filter((p) => p.isBot);
+    if (aliveBotPlayers.length === 0) return;
+
+    const delay = this.isTestMode ? 0 : 2000;
+
+    aliveBotPlayers.forEach((bot, index) => {
+      const staggeredDelay = delay + (this.isTestMode ? 0 : index * 400);
+      const action = () => {
+        if (this.state.phase !== 'DAY_VOTING' || !bot.isAlive) return;
+
+        const aliveOthers = this.getAlivePlayers().filter((p) => p.id !== bot.id);
+        const candidatePool = aliveOthers.length > 0 ? aliveOthers : this.getAlivePlayers();
+        if (candidatePool.length > 0) {
+          const target = candidatePool[Math.floor(Math.random() * candidatePool.length)];
+          this.castVote(bot.id, target.id);
+        }
+      };
+
+      if (staggeredDelay === 0) {
+        action();
+      } else {
+        const timeout = setTimeout(action, staggeredDelay);
+        this.botTimeouts.push(timeout);
+      }
+    });
   }
 
   public castVote(voterId: string, targetId: string | null): { success: boolean; message?: string } {
@@ -1101,6 +1325,8 @@ export class GameEngine {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+    this.botTimeouts.forEach((t) => clearTimeout(t));
+    this.botTimeouts = [];
   }
 
   private addLog(

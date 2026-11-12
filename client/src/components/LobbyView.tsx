@@ -19,11 +19,13 @@ import {
   Shield,
   Moon,
   ArrowRight,
+  Bot,
+  Plus,
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/helpers';
 
 export const LobbyView: React.FC = () => {
-  const { roomState, me, joinRoom, leaveRoom, startGame, error, clearError } = useGame();
+  const { roomState, me, joinRoom, leaveRoom, startGame, addBot, removeBot, fillBots, error, clearError } = useGame();
 
   const [inputName, setInputName] = useState(
     () => localStorage.getItem('werewolf_name') || `NgườiChơi_${Math.floor(100 + Math.random() * 900)}`
@@ -111,11 +113,62 @@ export const LobbyView: React.FC = () => {
           </div>
         )}
 
+        {/* Bot Controls Panel for Host (Chơi thử với Bot) */}
+        {isHost && (
+          <div className="rounded-2xl bg-purple-950/40 border border-purple-500/30 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-purple-900/70 text-purple-300 border border-purple-500/40">
+                <Bot className="w-5 h-5 text-purple-400 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                  <span>Chế Độ Chơi Thử Với Bot Tự Động</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-900/80 text-purple-300 border border-purple-500/30">
+                    Solo Test
+                  </span>
+                </h4>
+                <p className="text-[11px] text-purple-200/80 mt-0.5">
+                  Thêm người chơi máy (Bot) để trải nghiệm toàn bộ tiến trình game một mình.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => addBot()}
+                disabled={playerCount >= MAX_PLAYERS}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-800/90 hover:bg-purple-700 active:scale-95 text-white border border-purple-400/50 shadow-md disabled:opacity-40 transition-all flex items-center gap-1.5"
+                title="Thêm 1 Bot vào phòng"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Thêm 1 Bot</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fillBots(6)}
+                disabled={playerCount >= 6}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white border border-purple-400/40 shadow-lg disabled:opacity-40 transition-all flex items-center gap-1.5"
+                title="Tự động thêm bot cho đủ 6 người"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span>Thêm Đủ 6 Người</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 2-COLUMN / RESPONSIVE CARD GRID OF PLAYERS IN LOBBY */}
         <div>
-          <h2 className="text-sm font-extrabold text-gray-300 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-400" />
-            <span>Danh sách người chơi ({playerCount})</span>
+          <h2 className="text-sm font-extrabold text-gray-300 mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-400" />
+              <span>Danh sách người chơi ({playerCount})</span>
+            </span>
+            <span className="text-xs font-normal text-gray-400">
+              Người thật: {roomState.players.filter((p) => !p.isBot).length} | Bot: {roomState.players.filter((p) => p.isBot).length}
+            </span>
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
@@ -125,6 +178,8 @@ export const LobbyView: React.FC = () => {
                 player={player}
                 isMe={player.id === me?.id}
                 showRole={false}
+                canRemoveBot={isHost && !!player.isBot}
+                onRemoveBot={() => removeBot(player.id)}
               />
             ))}
           </div>

@@ -43,6 +43,9 @@ interface GameContextType {
   castVote: (targetId: string | null) => void;
   hunterShoot: (targetId: string) => void;
   restartGame: () => void;
+  addBot: (name?: string) => void;
+  removeBot: (botId: string) => void;
+  fillBots: (targetCount?: number) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -200,6 +203,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketService.restartGame();
   };
 
+  const addBot = (name?: string) => {
+    socketService.addBot(name);
+  };
+
+  const removeBot = (botId: string) => {
+    socketService.removeBot(botId);
+  };
+
+  const fillBots = (targetCount: number = 6) => {
+    if (!roomState) return;
+    const currentCount = roomState.players.length;
+    const needed = Math.max(0, targetCount - currentCount);
+    for (let i = 0; i < needed; i++) {
+      setTimeout(() => {
+        socketService.addBot();
+      }, i * 150);
+    }
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -227,6 +249,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         castVote,
         hunterShoot,
         restartGame,
+        addBot,
+        removeBot,
+        fillBots,
       }}
     >
       {children}
