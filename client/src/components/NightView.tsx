@@ -83,7 +83,7 @@ export const NightView: React.FC = () => {
       }
       setSelectedTargetId(target.id === selectedTargetId ? null : target.id);
     } else {
-      // Werewolf, Seer
+      // Werewolf, Seer, Hunter
       setSelectedTargetId(target.id === selectedTargetId ? null : target.id);
     }
   };
@@ -112,6 +112,11 @@ export const NightView: React.FC = () => {
         performNightAction('CUPID_CHOOSE', selectedTargetId, secondTargetId);
         setActionConfirmed(true);
       }
+    } else if (me.role === 'HUNTER') {
+      if (selectedTargetId) {
+        performNightAction('HUNTER_AIM', selectedTargetId);
+        setActionConfirmed(true);
+      }
     } else if (me.role === 'WITCH') {
       if (witchActionState === 'SAVING') {
         performNightAction('WITCH_SAVE');
@@ -131,6 +136,25 @@ export const NightView: React.FC = () => {
     setActionConfirmed(true);
   };
 
+  const handleHunterAim = () => {
+    if (selectedTargetId) {
+      performNightAction('HUNTER_AIM', selectedTargetId);
+      setActionConfirmed(true);
+    }
+  };
+
+  const handleHunterFire = () => {
+    if (selectedTargetId) {
+      performNightAction('HUNTER_FIRE', selectedTargetId);
+      setActionConfirmed(true);
+    }
+  };
+
+  const handleHunterSkip = () => {
+    performNightAction('HUNTER_SKIP');
+    setActionConfirmed(true);
+  };
+
   // Target victim attacked by wolf (visible to Witch during her turn)
   const wolfVictim = roomState.nightVictims?.wolfVictimId
     ? roomState.players.find((p) => p.id === roomState.nightVictims.wolfVictimId)
@@ -138,7 +162,7 @@ export const NightView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-3 pb-24">
-      {/* 1. NIGHT SUBPHASE STEPPER / TRACKER (Cupid -> Bodyguard -> Werewolf -> Witch -> Seer) */}
+      {/* 1. NIGHT SUBPHASE STEPPER / TRACKER (Cupid -> Bodyguard -> Werewolf -> Witch -> Seer -> Hunter) */}
       <div className="rounded-2xl bg-[#111222]/90 border border-indigo-900/50 p-2.5 sm:p-3 shadow-lg">
         <div className="flex items-center justify-between gap-1 mb-2">
           <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300">
@@ -150,8 +174,8 @@ export const NightView: React.FC = () => {
           </span>
         </div>
 
-        {/* Stepper items horizontal scrollable on mobile */}
-        <div className="grid grid-cols-5 gap-1 sm:gap-2">
+        {/* Stepper items 6-column grid */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-2">
           {NIGHT_SUBPHASE_ORDER.map((step, idx) => {
             const isActive = currentStepIndex === idx;
             const isCompleted = currentStepIndex > idx;
@@ -223,29 +247,76 @@ export const NightView: React.FC = () => {
               </div>
             </div>
 
-            {/* Confirm action button */}
-            {!actionConfirmed ? (
-              <button
-                onClick={handleConfirmAction}
-                disabled={
-                  (me.role === 'CUPID' && (!selectedTargetId || !secondTargetId)) ||
-                  (me.role === 'WEREWOLF' && !selectedTargetId) ||
-                  (me.role === 'SEER' && !selectedTargetId) ||
-                  (me.role === 'BODYGUARD' && !selectedTargetId) ||
-                  (me.role === 'WITCH' && witchActionState === 'POISONING' && !selectedTargetId)
-                }
-                className="px-4 py-2 rounded-xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-gray-950 shadow-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
-              >
-                <Check className="w-4 h-4" />
-                <span>Xác Nhận Hành Động</span>
-              </button>
-            ) : (
+            {/* Confirm action button (for non-Witch, non-Hunter standard roles) */}
+            {me.role !== 'WITCH' && me.role !== 'HUNTER' && (
+              <>
+                {!actionConfirmed ? (
+                  <button
+                    onClick={handleConfirmAction}
+                    disabled={
+                      (me.role === 'CUPID' && (!selectedTargetId || !secondTargetId)) ||
+                      (me.role === 'WEREWOLF' && !selectedTargetId) ||
+                      (me.role === 'SEER' && !selectedTargetId) ||
+                      (me.role === 'BODYGUARD' && !selectedTargetId)
+                    }
+                    className="px-4 py-2 rounded-xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-gray-950 shadow-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Xác Nhận Hành Động</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-400 text-xs font-black shadow-md">
+                    <UserCheck className="w-4 h-4" />
+                    <span>Đã thực hiện xong</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {actionConfirmed && (me.role === 'WITCH' || me.role === 'HUNTER') && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-400 text-xs font-black shadow-md">
                 <UserCheck className="w-4 h-4" />
                 <span>Đã thực hiện xong</span>
               </div>
             )}
           </div>
+
+          {/* Hunter Specific Action Controls */}
+          {me.role === 'HUNTER' && !actionConfirmed && (
+            <div className="mt-3 pt-3 border-t border-amber-900/60 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-gray-300">Quyết định của Thợ Săn:</span>
+
+              {/* Aim button */}
+              <button
+                onClick={handleHunterAim}
+                disabled={!selectedTargetId}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-gray-950 border border-amber-300 disabled:opacity-40 flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                title="Ngắm sẵn mục tiêu để kéo theo nếu bạn bị chết đêm nay"
+              >
+                <Crosshair className="w-3.5 h-3.5 text-gray-950" />
+                <span>🎯 Ngắm Sẵn Kéo Theo</span>
+              </button>
+
+              {/* Fire button */}
+              <button
+                onClick={handleHunterFire}
+                disabled={!selectedTargetId}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-red-700 hover:bg-red-600 border border-red-400 text-white disabled:opacity-40 flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                title="Nổ súng tiêu diệt ngay mục tiêu đêm nay"
+              >
+                <Skull className="w-3.5 h-3.5 text-red-200" />
+                <span>💥 Bắn Hạ Ngay Đêm Nay</span>
+              </button>
+
+              {/* Skip button */}
+              <button
+                onClick={handleHunterSkip}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-800/90 hover:bg-gray-700 text-gray-300 border border-gray-700 active:scale-95 transition-all"
+              >
+                Bỏ qua đêm nay
+              </button>
+            </div>
+          )}
 
           {/* Witch Specific Action Controls */}
           {me.role === 'WITCH' && !actionConfirmed && (
@@ -352,6 +423,7 @@ export const NightView: React.FC = () => {
           if (isSelected && me.role === 'SEER') badge = 'Soi Thân Phận';
           if (isSelected && me.role === 'BODYGUARD') badge = 'Bảo Vệ';
           if (isSelected && me.role === 'WEREWOLF') badge = 'Cắn Xé';
+          if (isSelected && me.role === 'HUNTER') badge = 'Mục Tiêu Ngắm';
           if (isSelected && witchActionState === 'POISONING') badge = 'Đầu Độc';
 
           const selectable =

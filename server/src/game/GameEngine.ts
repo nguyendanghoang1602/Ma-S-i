@@ -33,6 +33,8 @@ export class GameEngine {
   public state: RoomState;
   private lastProtectedPlayerId: string | null = null;
   private werewolfVotes: Record<string, string> = {}; // wolfId -> targetId
+  private hunterBulletUsed: boolean = false;
+  private hunterNightVictimId: string | null = null;
   private timerInterval: NodeJS.Timeout | null = null;
   private botTimeouts: NodeJS.Timeout[] = [];
   public isTestMode: boolean = false;
@@ -244,7 +246,11 @@ export class GameEngine {
     this.state.winReason = null;
     this.state.lovers = null;
     this.state.witchInventory = { hasSavePotion: true, hasPoisonPotion: true };
+    this.hunterBulletUsed = false;
+    this.hunterNightVictimId = null;
     this.lastProtectedPlayerId = null;
+    this.hunterBulletUsed = false;
+    this.hunterNightVictimId = null;
 
     this.addLog(`Ván đấu bắt đầu với ${count} người chơi! Đêm đầu tiên buông xuống...`, 'INFO');
     this.startNight();
@@ -273,9 +279,9 @@ export class GameEngine {
         const wolfCount = Math.max(1, Math.floor(count / 3));
         roles = Array(wolfCount).fill('WEREWOLF');
         roles.push('SEER');
+        roles.push('HUNTER');
         if (count >= 5) roles.push('BODYGUARD');
         if (count >= 5) roles.push('WITCH');
-        if (count >= 6) roles.push('HUNTER');
         if (count >= 7) roles.push('CUPID');
 
         while (roles.length < count) {
@@ -314,6 +320,7 @@ export class GameEngine {
     this.state.phase = 'NIGHT';
     this.werewolfVotes = {};
     this.state.votes = {};
+    this.hunterNightVictimId = null;
     this.state.nightVictims = {
       wolfVictimId: null,
       poisonVictimId: null,
@@ -335,7 +342,7 @@ export class GameEngine {
   }
 
   private advanceToNextNightSubPhase(): void {
-    const subPhases: NightSubPhase[] = ['CUPID', 'BODYGUARD', 'WEREWOLF', 'WITCH', 'SEER'];
+    const subPhases: NightSubPhase[] = ['CUPID', 'BODYGUARD', 'WEREWOLF', 'WITCH', 'SEER', 'HUNTER'];
     const current = this.state.nightSubPhase;
     let nextIndex = current ? subPhases.indexOf(current) + 1 : 0;
 
@@ -390,6 +397,9 @@ export class GameEngine {
       case 'SEER':
         return alivePlayers.some((p) => p.role === 'SEER');
 
+      case 'HUNTER':
+        return alivePlayers.some((p) => p.role === 'HUNTER');
+
       default:
         return false;
     }
@@ -420,6 +430,9 @@ export class GameEngine {
         break;
       case 'SEER':
         this.addLog('Tiên Tri thức giấc để soi thấu thân phận người chơi...', 'INFO');
+        break;
+      case 'HUNTER':
+        this.addLog('Thợ Săn thức giấc, giương súng ngắm mục tiêu trong đêm...', 'INFO');
         break;
     }
 
@@ -535,6 +548,25 @@ export class GameEngine {
             this.handleNightAction({
               actorId: seer.id,
               actionType: 'SEER_CHECK',
+              targetId: target.id,
+            });
+          }
+        });
+        break;
+      }
+
+      case 'HUNTER': {
+        const hunter = this.getAlivePlayers().find((p) => p.role === 'HUNTER' && p.isBot);
+        if (!hunter) return;
+
+        scheduleAction(() => {
+          const others = this.getAlivePlayers().filter((p) => p.id !== hunter.id);
+          const pool = others.length > 0 ? others : this.getAlivePlayers();
+          if (pool.length > 0) {
+            const target = pool[Math.floor(Math.random() * pool.length)];
+            this.handleNightAction({
+              actorId: hunter.id,
+              actionType: 'HUNTER_AIM',
               targetId: target.id,
             });
           }
@@ -724,6 +756,55 @@ export class GameEngine {
         return { success: true, seerResult };
       }
 
+      case 'HUNTER_AIM': {
+        if (this.state.nightSubPhase !== 'HUNTER' || actor.role !== 'HUNTER') {
+          return { success: false, message: 'Không phải lượt của Thợ Săn' };
+        }
+        if (!action.targetId) {
+          return { success: false, message: 'Thợ Săn phải chọn một mục tiêu để ngắm bắn' };
+        }
+        const target = this.getPlayer(action.targetId);
+        if (!target || !target.isAlive) {
+          return { success: false, message: 'Mục tiêu phải còn sống' };
+        }
+
+        actor.targetPlayerId = target.id;
+        this.addLog('Thợ Săn đã giương súng ngắm sẵn mục tiêu trong bóng đêm.', 'INFO');
+        this.advanceToNextNightSubPhase();
+        return { success: true };
+      }
+
+      case 'HUNTER_FIRE': {
+        if (this.state.nightSubPhase !== 'HUNTER' || actor.role !== 'HUNTER') {
+          return { success: false, message: 'Không phải lượt của Thợ Săn' };
+        }
+        if (this.hunterBulletUsed) {
+          return { success: false, message: 'Thợ Săn đã dùng phát đạn đêm này rồi' };
+        }
+        if (!action.targetId) {
+          return { success: false, message: 'Thợ Săn phải chọn một mục tiêu để bắn hạ' };
+        }
+        const target = this.getPlayer(action.targetId);
+        if (!target || !target.isAlive) {
+          return { success: false, message: 'Mục tiêu phải còn sống' };
+        }
+
+        this.hunterBulletUsed = true;
+        this.hunterNightVictimId = target.id;
+        actor.targetPlayerId = target.id;
+        this.addLog('Thợ Săn đã nổ súng tiêu diệt mục tiêu trong đêm!', 'INFO');
+        this.advanceToNextNightSubPhase();
+        return { success: true };
+      }
+
+      case 'HUNTER_SKIP': {
+        if (this.state.nightSubPhase !== 'HUNTER' || actor.role !== 'HUNTER') {
+          return { success: false, message: 'Không phải lượt của Thợ Săn' };
+        }
+        this.advanceToNextNightSubPhase();
+        return { success: true };
+      }
+
       default:
         return { success: false, message: 'Hành động không được hỗ trợ' };
     }
@@ -792,7 +873,41 @@ export class GameEngine {
       }
     }
 
-    // 3. Lovers Grief Cascade
+    // 3. Hunter Night Gunshot Victim
+    if (this.hunterNightVictimId) {
+      const victim = this.getPlayer(this.hunterNightVictimId);
+      if (victim && victim.isAlive && !deadIds.has(this.hunterNightVictimId)) {
+        deadIds.add(this.hunterNightVictimId);
+        deaths.push({
+          playerId: victim.id,
+          playerName: victim.name,
+          role: victim.role,
+          reason: 'Bị Thợ Săn nổ súng bắn hạ trong đêm',
+        });
+      }
+    }
+
+    // 4. Hunter Aimed Revenge Victim (if Hunter died tonight and aimed earlier)
+    const deadHunter = deaths.find((d) => d.role === 'HUNTER');
+    let hunterAimedKilled = false;
+    if (deadHunter) {
+      const hunterPlayer = this.getPlayer(deadHunter.playerId);
+      if (hunterPlayer && hunterPlayer.targetPlayerId) {
+        const aimedVictim = this.getPlayer(hunterPlayer.targetPlayerId);
+        if (aimedVictim && aimedVictim.isAlive && !deadIds.has(aimedVictim.id)) {
+          deadIds.add(aimedVictim.id);
+          deaths.push({
+            playerId: aimedVictim.id,
+            playerName: aimedVictim.name,
+            role: aimedVictim.role,
+            reason: 'Bị Thợ Săn kéo theo chết cùng trước khi ngã xuống',
+          });
+          hunterAimedKilled = true;
+        }
+      }
+    }
+
+    // 5. Lovers Grief Cascade
     if (this.state.lovers) {
       const [lover1Id, lover2Id] = this.state.lovers;
       const l1 = this.getPlayer(lover1Id);
@@ -838,9 +953,9 @@ export class GameEngine {
       this.addLog(`Trời đã sáng! Đêm qua có ${deaths.length} người ngã xuống: ${names}`, 'DEATH');
     }
 
-    // Check if Hunter was killed -> Trigger Hunter revenge shot!
+    // Check if Hunter was killed -> Trigger Hunter revenge shot (if not already aimed)!
     const killedHunter = deaths.find((d) => d.role === 'HUNTER');
-    if (killedHunter) {
+    if (killedHunter && !hunterAimedKilled) {
       this.triggerHunterShot(killedHunter.playerId, killedHunter.playerName);
     }
 
@@ -1181,6 +1296,8 @@ export class GameEngine {
     this.state.hunterPending = null;
     this.state.lastNightDeaths = [];
     this.state.witchInventory = { hasSavePotion: true, hasPoisonPotion: true };
+    this.hunterBulletUsed = false;
+    this.hunterNightVictimId = null;
 
     this.state.players.forEach((p) => {
       p.role = null;

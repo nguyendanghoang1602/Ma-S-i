@@ -51,9 +51,9 @@ export const SOCKET_EVENTS = {
  * Recommended balanced role distributions per player count
  */
 export const RECOMMENDED_ROLE_CONFIGS: Record<number, RoleType[]> = {
-  4: ['WEREWOLF', 'SEER', 'BODYGUARD', 'VILLAGER'],
-  5: ['WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'VILLAGER'],
-  6: ['WEREWOLF', 'WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'VILLAGER'],
+  4: ['WEREWOLF', 'SEER', 'HUNTER', 'VILLAGER'],
+  5: ['WEREWOLF', 'SEER', 'HUNTER', 'WITCH', 'VILLAGER'],
+  6: ['WEREWOLF', 'WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'HUNTER'],
   7: ['WEREWOLF', 'WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'HUNTER', 'VILLAGER'],
   8: ['WEREWOLF', 'WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'HUNTER', 'CUPID', 'VILLAGER'],
   9: ['WEREWOLF', 'WEREWOLF', 'SEER', 'BODYGUARD', 'WITCH', 'HUNTER', 'CUPID', 'VILLAGER', 'VILLAGER'],

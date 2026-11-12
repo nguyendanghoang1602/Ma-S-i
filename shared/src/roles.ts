@@ -30,6 +30,7 @@ export const NIGHT_ROLE_ORDER: RoleType[] = [
   'WEREWOLF',
   'WITCH',
   'SEER',
+  'HUNTER',
 ];
 
 export interface NightSubPhaseStep {
@@ -75,6 +76,13 @@ export const NIGHT_SUBPHASE_ORDER: NightSubPhaseStep[] = [
     nameVi: 'Tiên Tri',
     icon: '🔮',
     wakeMessage: 'Tiên Tri hãy thức dậy và chọn 1 người để soi thân phận thật.',
+  },
+  {
+    subPhase: 'HUNTER',
+    role: 'HUNTER',
+    nameVi: 'Thợ Săn',
+    icon: '🏹',
+    wakeMessage: 'Thợ Săn thức giấc, giương nỏ ngắm bắn mục tiêu...',
   },
 ];
 
@@ -162,12 +170,14 @@ export const ROLE_DEFINITIONS: Record<RoleType, RoleDefinition> = {
     nameVi: 'Thợ Săn',
     nameEn: 'Hunter',
     team: 'VILLAGE',
-    nightOrder: 0,
-    hasNightAction: false,
+    nightOrder: 6,
+    hasNightAction: true,
     descriptionVi:
-      'Khi Thợ Săn chết (bị sói cắn hoặc bị treo cổ), Thợ Săn có quyền nổ 1 phát súng cuối cùng để kéo theo 1 người chơi khác cùng chết.',
-    actionVi: 'Bắn chết 1 kẻ bất kỳ khi bạn bị sát hại hoặc bị xử tử.',
-    wakePromptVi: 'Thợ Săn đã ngã xuống, hãy chọn 1 người chết cùng bạn!',
+      'Khi Thợ Săn chết (bị sói cắn hoặc bị treo cổ), Thợ Săn có quyền nổ 1 phát súng cuối cùng để kéo theo 1 người chơi khác cùng chết. Ban đêm, Thợ Săn thức giấc để giương súng ngắm sẵn mục tiêu hoặc nổ súng.',
+    actionVi:
+      'Giương súng ngắm sẵn mục tiêu kéo theo nếu bị hạ gục đêm nay, hoặc nổ súng tiêu diệt ngay.',
+    wakePromptVi:
+      'Thợ Săn hãy thức giấc, giương súng ngắm sẵn mục tiêu hoặc nổ súng đêm nay!',
     icon: '🏹',
     cardColor: 'from-amber-600 to-yellow-800',
     borderGlowColor: '#f59e0b',

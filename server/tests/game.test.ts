@@ -65,7 +65,7 @@ describe('GameEngine - Role Assignment & Lobby', () => {
     const roles = game.state.players.map((p) => p.role);
     expect(roles).toContain('WEREWOLF');
     expect(roles).toContain('SEER');
-    expect(roles).toContain('BODYGUARD');
+    expect(roles).toContain('HUNTER');
     expect(roles).toContain('VILLAGER');
   });
 });
@@ -266,8 +266,87 @@ describe('GameEngine - Night Phase Sequencing & Role Actions', () => {
     expect(seerRes.seerResult?.isEvil).toBe(true);
     expect(seerRes.seerResult?.team).toBe('WEREWOLF');
 
-    // After Seer, night completes and transitions to DAY_DISCUSSION
+    // After Seer, advances to HUNTER (step 6)
+    expect(game.state.nightSubPhase).toBe('HUNTER');
+
+    // Hunter skips action -> completes night and transitions to DAY_DISCUSSION
+    const hunterRes = game.handleNightAction({
+      actorId: 'p7',
+      actionType: 'HUNTER_SKIP',
+    });
+    expect(hunterRes.success).toBe(true);
     expect(game.state.phase).toBe('DAY_DISCUSSION');
+  });
+
+  it('allows Hunter to aim at a target and kill them if Hunter dies at night', () => {
+    // Cupid
+    game.handleNightAction({
+      actorId: 'p1',
+      actionType: 'CUPID_CHOOSE',
+      targetId: 'p1',
+      secondTargetId: 'p2',
+    });
+    // Bodyguard protects p2
+    game.handleNightAction({ actorId: 'p2', actionType: 'BODYGUARD_PROTECT', targetId: 'p2' });
+    // Wolves kill Hunter (p7)
+    game.handleNightAction({ actorId: 'p3', actionType: 'WEREWOLF_KILL', targetId: 'p7' });
+    game.handleNightAction({ actorId: 'p4', actionType: 'WEREWOLF_KILL', targetId: 'p7' });
+    // Witch skip
+    game.handleNightAction({ actorId: 'p5', actionType: 'WITCH_SKIP' });
+    // Seer checks
+    game.handleNightAction({ actorId: 'p6', actionType: 'SEER_CHECK', targetId: 'p3' });
+
+    expect(game.state.nightSubPhase).toBe('HUNTER');
+
+    // Hunter aims at Wolf 1 (p3)
+    const aimRes = game.handleNightAction({
+      actorId: 'p7',
+      actionType: 'HUNTER_AIM',
+      targetId: 'p3',
+    });
+    expect(aimRes.success).toBe(true);
+
+    // Transitions to DAY_DISCUSSION
+    expect(game.state.phase).toBe('DAY_DISCUSSION');
+
+    // Hunter died from wolves
+    expect(game.getPlayer('p7')?.isAlive).toBe(false);
+    // Aimed target (Wolf p3) also died!
+    expect(game.getPlayer('p3')?.isAlive).toBe(false);
+  });
+
+  it('allows Hunter to fire bullet directly in the night', () => {
+    // Cupid
+    game.handleNightAction({
+      actorId: 'p1',
+      actionType: 'CUPID_CHOOSE',
+      targetId: 'p1',
+      secondTargetId: 'p2',
+    });
+    // Bodyguard protects p2
+    game.handleNightAction({ actorId: 'p2', actionType: 'BODYGUARD_PROTECT', targetId: 'p2' });
+    // Wolves kill Villager (p8)
+    game.handleNightAction({ actorId: 'p3', actionType: 'WEREWOLF_KILL', targetId: 'p8' });
+    game.handleNightAction({ actorId: 'p4', actionType: 'WEREWOLF_KILL', targetId: 'p8' });
+    // Witch skip
+    game.handleNightAction({ actorId: 'p5', actionType: 'WITCH_SKIP' });
+    // Seer checks
+    game.handleNightAction({ actorId: 'p6', actionType: 'SEER_CHECK', targetId: 'p4' });
+
+    expect(game.state.nightSubPhase).toBe('HUNTER');
+
+    // Hunter fires bullet directly at Wolf 2 (p4)
+    const fireRes = game.handleNightAction({
+      actorId: 'p7',
+      actionType: 'HUNTER_FIRE',
+      targetId: 'p4',
+    });
+    expect(fireRes.success).toBe(true);
+
+    // Day arrived
+    expect(game.state.phase).toBe('DAY_DISCUSSION');
+    // Victim of Hunter's shot is dead
+    expect(game.getPlayer('p4')?.isAlive).toBe(false);
   });
 
   it('skips Cupid on night 2 and begins with Bodyguard', () => {

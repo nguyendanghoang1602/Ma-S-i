@@ -26,6 +26,7 @@ export type NightSubPhase =
   | 'WEREWOLF'
   | 'WITCH'
   | 'SEER'
+  | 'HUNTER'
   | 'COMPLETED';
 
 export interface Player {
@@ -58,7 +59,10 @@ export type NightActionType =
   | 'WITCH_SAVE'
   | 'WITCH_POISON'
   | 'WITCH_SKIP'
-  | 'SEER_CHECK';
+  | 'SEER_CHECK'
+  | 'HUNTER_AIM'
+  | 'HUNTER_FIRE'
+  | 'HUNTER_SKIP';
 
 export interface NightAction {
   actorId: string;
